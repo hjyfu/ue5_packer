@@ -5,7 +5,7 @@ mod ui;
 mod commands;
 
 use eframe::egui;
-use models::{Operation, CookOptions};
+use models::Operation;
 use env_logger;
 
 fn main() -> Result<(), eframe::Error> {

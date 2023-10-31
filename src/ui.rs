@@ -1,10 +1,11 @@
 use eframe::egui;
 use native_dialog::FileDialog;
-use super::models::{Operation, CookOptions};
+use super::models::Operation;
 use super::commands::run_pack_command;
 use serde::{Serialize, Deserialize};
 use std::fs;
 use std::path::Path;
+use std::process::Command;
 
 
 
@@ -37,9 +38,9 @@ pub fn show_ui(
     output_pak_name: &mut String,
     operation: &mut Operation,
     log_output: &mut String,
-    unreal_editor_path: &mut String,
     target_platform: &mut String,
     unreal_project_path: &mut String,
+    ue5_root_path: &mut String,
 ) {
     let mut config = Config::load();
     if unreal_pak_path.is_empty() {
@@ -107,14 +108,14 @@ pub fn show_ui(
 
                 // Display the log output
                 ui.group(|ui| {
-                    ui.label("Log Output:");
+                    ui.label("Pack Log Output:");
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         ui.monospace(log_output);
                     });
                 });
             }
             Operation::Cook => {
-                let platforms = vec!["WindowsNoEditor", "WindowsServer", "LinuxServer", "IOS", "Android"];
+                let platforms = vec!["Win64", "WindowsServer", "LinuxServer", "IOS", "Android"];
                 egui::ComboBox::from_label("Target Platform")
                     .selected_text(target_platform.clone()) // 使用 target_platform 显示已选中的平台
                     .show_ui(ui, |ui| {
@@ -125,16 +126,16 @@ pub fn show_ui(
                         }
                     });
                 ui.horizontal(|ui| {
-                    if ui.button("Choose UnrealEditor.exe").clicked() {
+                    if ui.button("Choose UnrealRootPath").clicked() {
                         let result = FileDialog::new()
-                            .show_open_single_file()
+                            .show_open_single_dir()
                             .unwrap();
 
                         if let Some(path) = result {
-                            *unreal_editor_path = path.display().to_string();
+                            *ue5_root_path = path.display().to_string();
                         }
                     }
-                    ui.monospace(&*unreal_editor_path);
+                    ui.monospace(&*ue5_root_path);
                 });
                ui.horizontal(|ui|{
                    if ui.button("Choose UnrealProjectPath").clicked() {
@@ -148,9 +149,47 @@ pub fn show_ui(
                    }
                    ui.monospace(&*unreal_project_path);
                });
+                if ui.button("Cook Project").clicked() {
+                    println!("Cook Project button was clicked");
+                    run_ue5_cook_command(&ue5_root_path, &unreal_project_path, &target_platform, log_output);
+                }
 
-
+                // Display the log output (keep this common to both Pack and Cook if you want)
+                ui.group(|ui| {
+                    ui.label("Cook Log Output:");
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        ui.monospace(log_output);
+                    });
+                });
             }
         }
     });
+}
+
+fn run_ue5_cook_command(
+    ue5_root_path: &str, // 修改参数
+    project_path: &str,
+    target_platform: &str,
+    log_output: &mut String,
+) {
+    let uat_path = format!("{}/Engine/Build/BatchFiles/RunUAT.bat", ue5_root_path);
+    let editor_path = format!("{}/Engine/Binaries/Win64/UnrealEditor.exe", ue5_root_path);
+
+    let command = format!(
+        "{} -ScriptsForProject=\"{}\" Turnkey -command=VerifySdk -platform={} -UpdateIfNeeded -EditorIO -EditorIOPort=62548 -project=\"{}\" BuildCookRun -nop4 -utf8output -nocompileeditor -skipbuildeditor -cook -project=\"{}\" -unrealexe=\"{}\" -platform={} -installed -skipstage -nocompile -nocompileuat",
+        uat_path, project_path, target_platform, project_path, project_path, editor_path, target_platform
+    );
+
+    println!("command: {}", command);
+
+    let output = Command::new("cmd")
+        .args(&["/C", &command])
+        .output()
+        .expect("error");
+
+    *log_output = String::from_utf8_lossy(&output.stdout).into_owned();
+    let error_output = String::from_utf8_lossy(&output.stderr).into_owned();
+    if !error_output.is_empty() {
+        *log_output += &format!("\nerror: {}", error_output);
+    }
 }

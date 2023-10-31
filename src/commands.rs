@@ -1,7 +1,6 @@
 use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader};
 use std::env;
-use std::fs;
 
 pub fn run_pack_command(
     unreal_pak_path: &str,
@@ -56,18 +55,3 @@ pub fn run_pack_command(
             log_output.push_str("\nPlease select UnrealPak.exe, input path, and specify output pak name.");
         }
     }
-pub(crate) fn get_umap_files(directory: &str) -> Vec<String> {
-    let mut maps = Vec::new();
-    if let Ok(entries) = fs::read_dir(directory) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                if let Some(ext) = entry.path().extension() {
-                    if ext == "umap" {
-                        maps.push(entry.path().display().to_string());
-                    }
-                }
-            }
-        }
-    }
-    maps
-}
