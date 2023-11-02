@@ -3,5 +3,3 @@ pub enum Operation {
     Pack,
     Cook,
 }
-
-

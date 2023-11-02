@@ -1,19 +1,17 @@
+use super::commands::run_pack_command;
+use super::commands::testpak;
+use super::models::Operation;
 use eframe::egui;
 use native_dialog::FileDialog;
-use super::models::Operation;
-use super::commands::run_pack_command;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-
-
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 struct Config {
     unreal_pak_path: Option<String>,
 }
-
 
 impl Config {
     fn load() -> Self {
@@ -41,6 +39,7 @@ pub fn show_ui(
     target_platform: &mut String,
     unreal_project_path: &mut String,
     ue5_root_path: &mut String,
+    pak_path: &mut String,
 ) {
     let mut config = Config::load();
     if unreal_pak_path.is_empty() {
@@ -50,13 +49,15 @@ pub fn show_ui(
     }
 
     egui::CentralPanel::default().show(ctx, |ui| {
-
         ui.label("UE5 Project Packer");
 
         ui.horizontal(|ui| {
             ui.label("Operation:");
             for op in &[Operation::Pack, Operation::Cook] {
-                if ui.radio_value(operation, *op, format!("{:?}", *op)).clicked() {
+                if ui
+                    .radio_value(operation, *op, format!("{:?}", *op))
+                    .clicked()
+                {
                     log_output.clear();
                 }
             }
@@ -64,53 +65,68 @@ pub fn show_ui(
 
         match operation {
             Operation::Pack => {
-                if ui.button("Select UnrealPak.exe").clicked() {
-                    let result = FileDialog::new()
-                        .show_open_single_file()
-                        .unwrap();
-
-                    if let Some(path) = result {
-                        *unreal_pak_path = path.display().to_string();
-                        config.unreal_pak_path = Some(unreal_pak_path.clone());
-                        config.save();
-                    }
-
-                }
-
-                if ui.button("Select Input Directory or File").clicked() {
-                    let result = FileDialog::new()
-                        .show_open_single_dir()
-                        .unwrap();
-
-                    if let Some(path) = result {
-                        *input_path = path.display().to_string();
-                    }
-                }
-
                 ui.horizontal(|ui| {
-                    ui.label("Output PAK Name:");
-                    ui.text_edit_singleline(output_pak_name);
-                });
+                    ui.vertical(|ui| {
+                        if ui.button("Select UnrealPak.exe").clicked() {
+                            let result = FileDialog::new().show_open_single_file().unwrap();
 
-                ui.horizontal(|ui| {
-                    ui.label("Selected UnrealPak Path:");
-                    ui.monospace(&*unreal_pak_path);
-                });
+                            if let Some(path) = result {
+                                *unreal_pak_path = path.display().to_string();
+                                config.unreal_pak_path = Some(unreal_pak_path.clone());
+                                config.save();
+                            }
+                        }
 
-                ui.horizontal(|ui| {
-                    ui.label("Selected Input Path:");
-                    ui.monospace(&*input_path);
-                });
+                        if ui.button("Select Input Directory or File").clicked() {
+                            let result = FileDialog::new().show_open_single_dir().unwrap();
 
-                if ui.button("Pack Project").clicked() {
-                    run_pack_command(&unreal_pak_path, &input_path, &output_pak_name, log_output);
-                }
+                            if let Some(path) = result {
+                                *input_path = path.display().to_string();
+                            }
+                        }
 
-                // Display the log output
-                ui.group(|ui| {
-                    ui.label("Pack Log Output:");
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        ui.monospace(log_output);
+                        ui.horizontal(|ui| {
+                            ui.label("Output PAK Name:");
+                            ui.text_edit_singleline(output_pak_name);
+                        });
+
+                        ui.horizontal(|ui| {
+                            ui.label("Selected UnrealPak Path:");
+                            ui.monospace(&*unreal_pak_path);
+                        });
+
+                        ui.horizontal(|ui| {
+                            ui.label("Selected Input Path:");
+                            ui.monospace(&*input_path);
+                        });
+
+                        if ui.button("Pack Project").clicked() {
+                            run_pack_command(
+                                &unreal_pak_path,
+                                &input_path,
+                                &output_pak_name,
+                                log_output,
+                            );
+                        }
+
+                        // Display the log output
+                        ui.group(|ui| {
+                            ui.label("Pack Log Output:");
+                            egui::ScrollArea::vertical().show(ui, |ui| {
+                                ui.monospace(log_output);
+                            });
+                        });
+                    });
+                    ui.horizontal_top(|ui| {
+                        if ui.button("test pak").clicked() {
+                            let result = FileDialog::new().show_open_single_file().unwrap();
+
+                            if let Some(path) = result {
+                                pak_path.push_str(path.display().to_string().as_str());
+                                println!("pak_path: {}", pak_path);
+                                testpak(pak_path, &unreal_pak_path)
+                            }
+                        }
                     });
                 });
             }
@@ -127,9 +143,7 @@ pub fn show_ui(
                     });
                 ui.horizontal(|ui| {
                     if ui.button("Choose UnrealRootPath").clicked() {
-                        let result = FileDialog::new()
-                            .show_open_single_dir()
-                            .unwrap();
+                        let result = FileDialog::new().show_open_single_dir().unwrap();
 
                         if let Some(path) = result {
                             *ue5_root_path = path.display().to_string();
@@ -137,21 +151,24 @@ pub fn show_ui(
                     }
                     ui.monospace(&*ue5_root_path);
                 });
-               ui.horizontal(|ui|{
-                   if ui.button("Choose UnrealProjectPath").clicked() {
-                       let result = FileDialog::new()
-                           .show_open_single_file()
-                           .unwrap();
+                ui.horizontal(|ui| {
+                    if ui.button("Choose UnrealProjectPath").clicked() {
+                        let result = FileDialog::new().show_open_single_file().unwrap();
 
-                       if let Some(path) = result {
-                           *unreal_project_path = path.display().to_string();
-                       }
-                   }
-                   ui.monospace(&*unreal_project_path);
-               });
+                        if let Some(path) = result {
+                            *unreal_project_path = path.display().to_string();
+                        }
+                    }
+                    ui.monospace(&*unreal_project_path);
+                });
                 if ui.button("Cook Project").clicked() {
                     println!("Cook Project button was clicked");
-                    run_ue5_cook_command(&ue5_root_path, &unreal_project_path, &target_platform, log_output);
+                    run_ue5_cook_command(
+                        &ue5_root_path,
+                        &unreal_project_path,
+                        &target_platform,
+                        log_output,
+                    );
                 }
 
                 // Display the log output (keep this common to both Pack and Cook if you want)

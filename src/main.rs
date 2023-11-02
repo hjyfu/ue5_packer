@@ -1,12 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod commands;
 mod models;
 mod ui;
-mod commands;
 
 use eframe::egui;
-use models::Operation;
 use env_logger;
+use models::Operation;
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init();
@@ -21,9 +21,10 @@ fn main() -> Result<(), eframe::Error> {
     let mut output_pak_name = String::new();
     let mut operation = Operation::Pack;
     let mut log_output = String::new();
-    let mut unreal_editor_path=String::new();
-    let mut target_platform=String::new();
-    let mut unreal_project_path=String::new();
+    let mut unreal_editor_path = String::new();
+    let mut target_platform = String::new();
+    let mut unreal_project_path = String::new();
+    let mut pak_path = String::new();
     eframe::run_simple_native("UE5 Project Packer", options, move |ctx, _frame| {
         ui::show_ui(
             ctx,
@@ -34,7 +35,8 @@ fn main() -> Result<(), eframe::Error> {
             &mut log_output,
             &mut unreal_editor_path,
             &mut target_platform,
-            &mut unreal_project_path
+            &mut unreal_project_path,
+            &mut pak_path,
         );
     })
 }

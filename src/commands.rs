@@ -1,6 +1,6 @@
-use std::process::{Command, Stdio};
-use std::io::{BufRead, BufReader};
 use std::env;
+use std::io::{BufRead, BufReader};
+use std::process::{Command, Stdio};
 
 pub fn run_pack_command(
     unreal_pak_path: &str,
@@ -18,7 +18,7 @@ pub fn run_pack_command(
 
     if !unreal_pak_path.is_empty() && !input_path.is_empty() && !output_pak_name.is_empty() {
         let mut child = Command::new(&unreal_pak_path)
-            .arg(full_output_path)  // 使用完整路径代替之前的output_pak_name
+            .arg(full_output_path) // 使用完整路径代替之前的output_pak_name
             .arg("-create=")
             .arg(&input_path)
             .stdout(Stdio::piped())
@@ -26,32 +26,48 @@ pub fn run_pack_command(
             .spawn()
             .expect("failed to execute process");
 
-            if let Some(ref mut stdout) = child.stdout {
-                let reader = BufReader::new(stdout);
-                for line in reader.lines() {
-                    let line = line.unwrap();
-                    log_output.push_str(&line);
-                    log_output.push_str("\n");
-                }
+        if let Some(ref mut stdout) = child.stdout {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines() {
+                let line = line.unwrap();
+                log_output.push_str(&line);
+                log_output.push_str("\n");
             }
-
-            if let Some(ref mut stderr) = child.stderr {
-                let reader = BufReader::new(stderr);
-                for line in reader.lines() {
-                    let line = line.unwrap();
-                    log_output.push_str(&line);
-                    log_output.push_str("\n");
-                }
-            }
-
-            let status = child.wait().expect("failed to wait on child");
-
-            if status.success() {
-                log_output.push_str("\nPacking successful!");
-            } else {
-                log_output.push_str("\nPacking failed!");
-            }
-        } else {
-            log_output.push_str("\nPlease select UnrealPak.exe, input path, and specify output pak name.");
         }
+
+        if let Some(ref mut stderr) = child.stderr {
+            let reader = BufReader::new(stderr);
+            for line in reader.lines() {
+                let line = line.unwrap();
+                log_output.push_str(&line);
+                log_output.push_str("\n");
+            }
+        }
+
+        let status = child.wait().expect("failed to wait on child");
+
+        if status.success() {
+            log_output.push_str("\nPacking successful!");
+        } else {
+            log_output.push_str("\nPacking failed!");
+        }
+    } else {
+        log_output
+            .push_str("\nPlease select UnrealPak.exe, input path, and specify output pak name.");
     }
+}
+
+pub fn testpak(  pak_path: &mut String,
+                 unreal_pak_path: &str,
+                 ) {
+    let unreal_pak_path = unreal_pak_path.to_string(); // 克隆为String
+    let pak_path = pak_path.to_string();
+    let mut testchild = Command::new(&unreal_pak_path)
+        .arg(&pak_path)
+        .arg("-test")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("failed to execute process");
+
+}
